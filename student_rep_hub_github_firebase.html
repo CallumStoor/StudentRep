@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Student Representative Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: "#172033",
+            navy: "#23395d",
+            cream: "#f7f5ef",
+            paper: "#fffdf8",
+            coral: "#e98b73",
+            sage: "#8fae9b"
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body { background: #f7f5ef; color: #172033; }
+    .glass { background: rgba(255,253,248,.82); backdrop-filter: blur(12px); }
+    .soft-shadow { box-shadow: 0 16px 45px rgba(35,57,93,.08); }
+    .focus-ring:focus { outline: 3px solid rgba(233,139,115,.28); outline-offset: 2px; }
+    .calendar-day { min-height: 92px; }
+    @media (max-width: 640px) { .calendar-day { min-height: 70px; } }
+  </style>
+</head>
+
+<body class="min-h-screen">
+
+  <div id="loginScreen" class="fixed inset-0 z-[60] bg-navy flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-paper rounded-3xl p-7 sm:p-9 shadow-2xl">
+      <div class="text-center">
+        <div class="mx-auto w-14 h-14 rounded-2xl bg-coral text-white grid place-items-center text-2xl">🎓</div>
+        <p class="text-xs font-black uppercase tracking-[.2em] text-coral mt-5">Student voice</p>
+        <h1 class="text-3xl font-black mt-1">Representative Hub</h1>
+        <p class="text-slate-600 mt-3">Sign in with Google to load your saved feedback and meetings on any device.</p>
+      </div>
+
+      <button id="googleLoginBtn" type="button" class="mt-7 w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold rounded-xl py-3 flex items-center justify-center gap-3">
+        <span class="text-lg font-black">G</span>
+        Continue with Google
+      </button>
+
+      <p id="loginStatus" class="text-sm text-center text-slate-500 mt-4"></p>
+
+      <div id="firebaseSetupNotice" class="hidden mt-5 rounded-2xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">
+        <strong>Firebase setup required.</strong>
+        <p class="mt-1">Add your Firebase web configuration to this HTML file, then enable Google Authentication and Firestore in your Firebase project.</p>
+      </div>
+
+      <button id="useLocalBtn" type="button" class="mt-5 w-full text-sm font-bold text-slate-500 hover:text-navy">
+        Continue without an account
+      </button>
+      <p class="text-[11px] text-center text-slate-400 mt-4">Your Google password is never entered into this app. Google handles the sign-in.</p>
+    </div>
+  </div>
+
+  <div id="cookieConsent" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-paper border border-slate-200 rounded-2xl p-5 soft-shadow">
+    <div class="flex gap-3">
+      <div class="text-xl">🍪</div>
+      <div class="flex-1">
+        <h2 class="font-black">Save your data?</h2>
+        <p class="text-sm text-slate-600 mt-1">This app can save your feedback and meetings in a small cookie on this browser. The data stays on this device and is not sent to a server.</p>
+        <div class="flex gap-2 mt-4">
+          <button id="acceptCookies" class="bg-navy text-white font-bold rounded-xl px-4 py-2 text-sm">Allow cookies</button>
+          <button id="declineCookies" class="border border-slate-300 font-bold rounded-xl px-4 py-2 text-sm">Not now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <header class="sticky top-0 z-30 border-b border-slate-200/80 glass">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[.22em] text-coral">Student voice</p>
+        <h1 class="text-xl sm:text-2xl font-black tracking-tight">Representative Hub</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <nav class="hidden md:flex gap-2 text-sm font-semibold">
+          <a href="#dashboard" class="px-3 py-2 rounded-xl hover:bg-white">Dashboard</a>
+          <a href="#feedback" class="px-3 py-2 rounded-xl hover:bg-white">Feedback</a>
+          <a href="#meetings" class="px-3 py-2 rounded-xl hover:bg-white">Meetings</a>
+        </nav>
+        <div id="accountArea" class="hidden items-center gap-2">
+          <span id="accountName" class="hidden sm:inline text-xs font-bold text-slate-600"></span>
+          <span id="syncStatus" class="hidden sm:inline text-xs font-semibold text-slate-500">Local mode</span>
+          <button id="logoutBtn" type="button" class="text-xs font-bold border border-slate-300 rounded-xl px-3 py-2 hover:bg-white">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="dashboard" class="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+    <section class="rounded-3xl bg-navy text-white p-6 sm:p-8 soft-shadow overflow-hidden relative">
+      <div class="relative z-10 max-w-2xl">
+        <p class="text-sm font-bold uppercase tracking-[.2em] text-orange-200">Your student voice workspace</p>
+        <h2 class="mt-2 text-3xl sm:text-5xl font-black tracking-tight">Listen. Log. Follow up.</h2>
+        <p class="mt-4 text-slate-200 max-w-xl">Keep student feedback organised, spot recurring themes, and never lose track of the next representative meeting.</p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="#feedback-form" class="bg-coral hover:brightness-95 text-white font-bold px-5 py-3 rounded-xl">Log feedback</a>
+          <button id="viewMeetingsBtn" type="button" class="bg-white/10 hover:bg-white/20 font-bold px-5 py-3 rounded-xl">View meetings</button>
+        </div>
+      </div>
+      <div class="absolute -right-20 -bottom-28 w-80 h-80 rounded-full bg-coral/20"></div>
+      <div class="absolute right-20 -top-24 w-56 h-56 rounded-full bg-sage/20"></div>
+    </section>
+
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+      <div class="bg-paper rounded-2xl p-5 border border-slate-200 soft-shadow"><p class="text-sm text-slate-500">Total feedback</p><p id="statTotal" class="text-3xl font-black mt-1">0</p></div>
+      <div class="bg-paper rounded-2xl p-5 border border-slate-200 soft-shadow"><p class="text-sm text-slate-500">This month</p><p id="statMonth" class="text-3xl font-black mt-1">0</p></div>
+      <div class="bg-paper rounded-2xl p-5 border border-slate-200 soft-shadow"><p class="text-sm text-slate-500">Open follow-ups</p><p id="statOpen" class="text-3xl font-black mt-1">0</p></div>
+      <div class="bg-paper rounded-2xl p-5 border border-slate-200 soft-shadow"><p class="text-sm text-slate-500">Upcoming meetings</p><p id="statMeetings" class="text-3xl font-black mt-1">0</p></div>
+    </section>
+
+    <section id="feedback" class="grid lg:grid-cols-[380px_1fr] gap-6 mt-8">
+      <div id="feedback-form" class="bg-paper rounded-3xl p-6 border border-slate-200 soft-shadow h-fit">
+        <div class="flex items-center justify-between gap-3 mb-5">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-wider text-coral">New record</p>
+            <h2 class="text-2xl font-black">Log feedback</h2>
+          </div>
+          <span class="text-2xl">📝</span>
+        </div>
+
+        <form id="feedbackForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-bold mb-1" for="feedbackDate">Date</label>
+            <input id="feedbackDate" name="date" type="date" required class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+          </div>
+          <div>
+            <label class="block text-sm font-bold mb-1" for="student">Student / identifier</label>
+            <input id="student" name="student" required placeholder="Name, initials or anonymous" class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+          </div>
+          <div>
+            <label class="block text-sm font-bold mb-1" for="category">Category</label>
+            <select id="category" name="category" required class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+              <option value="">Choose a category</option>
+              <option>Teaching & learning</option>
+              <option>Assessment</option>
+              <option>Facilities</option>
+              <option>Wellbeing</option>
+              <option>Timetabling</option>
+              <option>Student services</option>
+              <option>Communication</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-bold mb-1" for="priority">Priority</label>
+            <select id="priority" name="priority" class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+              <option>Normal</option><option>High</option><option>Urgent</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-bold mb-1" for="description">Feedback</label>
+            <textarea id="description" name="description" required rows="5" placeholder="What did the student raise?" class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 resize-y"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-bold mb-1" for="action">Action / follow-up</label>
+            <input id="action" name="action" placeholder="e.g. Raise at programme meeting" class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+          </div>
+          <label class="flex items-center gap-2 text-sm">
+            <input id="followUp" type="checkbox" class="h-4 w-4">
+            <span>Needs follow-up</span>
+          </label>
+          <button class="w-full bg-navy hover:bg-slate-800 text-white font-bold rounded-xl py-3">Save feedback</button>
+        </form>
+      </div>
+
+      <div class="bg-paper rounded-3xl p-6 border border-slate-200 soft-shadow">
+        <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4 mb-5">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-wider text-coral">Feedback register</p>
+            <h2 class="text-2xl font-black">Student feedback</h2>
+          </div>
+          <div class="grid sm:grid-cols-3 gap-2 w-full xl:w-auto">
+            <input id="search" placeholder="Search…" class="focus-ring rounded-xl border border-slate-300 bg-white px-3 py-2">
+            <select id="filterCategory" class="focus-ring rounded-xl border border-slate-300 bg-white px-3 py-2"><option value="">All categories</option></select>
+            <input id="filterDate" type="date" class="focus-ring rounded-xl border border-slate-300 bg-white px-3 py-2">
+          </div>
+        </div>
+        <div id="feedbackList" class="space-y-3"></div>
+        <div id="emptyFeedback" class="hidden text-center py-12 text-slate-500">No feedback matches these filters.</div>
+      </div>
+    </section>
+
+    <section id="meetings" class="mt-8 grid lg:grid-cols-[1fr_360px] gap-6">
+      <div class="bg-paper rounded-3xl p-6 border border-slate-200 soft-shadow">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-wider text-coral">Planning</p>
+            <h2 class="text-2xl font-black">Meeting calendar</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="prevMonth" class="rounded-xl border px-3 py-2 hover:bg-slate-50" aria-label="Previous month">←</button>
+            <button id="todayBtn" class="rounded-xl border px-3 py-2 hover:bg-slate-50">Today</button>
+            <button id="nextMonth" class="rounded-xl border px-3 py-2 hover:bg-slate-50" aria-label="Next month">→</button>
+          </div>
+        </div>
+        <h3 id="calendarTitle" class="font-black text-lg mb-3"></h3>
+        <div class="grid grid-cols-7 text-xs font-bold text-slate-500 mb-1">
+          <div class="p-2">Sun</div><div class="p-2">Mon</div><div class="p-2">Tue</div><div class="p-2">Wed</div><div class="p-2">Thu</div><div class="p-2">Fri</div><div class="p-2">Sat</div>
+        </div>
+        <div id="calendar" class="grid grid-cols-7 gap-1"></div>
+      </div>
+
+      <div class="bg-paper rounded-3xl p-6 border border-slate-200 soft-shadow h-fit">
+        <p class="text-xs font-bold uppercase tracking-wider text-coral">New event</p>
+        <h2 class="text-2xl font-black mb-5">Add meeting</h2>
+        <form id="meetingForm" class="space-y-4">
+          <div><label class="block text-sm font-bold mb-1" for="meetingTitle">Meeting title</label><input id="meetingTitle" required placeholder="Programme rep meeting" class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"></div>
+          <div><label class="block text-sm font-bold mb-1" for="meetingDate">Date</label><input id="meetingDate" type="date" required class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"></div>
+          <div><label class="block text-sm font-bold mb-1" for="meetingTime">Time</label><input id="meetingTime" type="time" required class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"></div>
+          <div><label class="block text-sm font-bold mb-1" for="meetingLocation">Location / link</label><input id="meetingLocation" placeholder="Room or online" class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"></div>
+          <div><label class="block text-sm font-bold mb-1" for="meetingNotes">Notes</label><textarea id="meetingNotes" rows="3" placeholder="Agenda, preparation, etc." class="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"></textarea></div>
+          <button class="w-full bg-coral hover:brightness-95 text-white font-bold rounded-xl py-3">Add meeting</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="mt-8 bg-paper rounded-3xl p-6 border border-slate-200 soft-shadow">
+      <div class="flex items-center justify-between gap-3 mb-4">
+        <div><p class="text-xs font-bold uppercase tracking-wider text-coral">Agenda</p><h2 class="text-2xl font-black">Upcoming meetings</h2></div>
+        <button id="clearData" class="text-xs font-bold text-slate-500 hover:text-red-600">Clear all data</button>
+      </div>
+      <div id="meetingList" class="grid md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+      <div id="emptyMeetings" class="hidden text-slate-500 py-6">No upcoming meetings yet.</div>
+    </section>
+  </main>
+
+  <footer class="mx-auto max-w-7xl px-4 sm:px-6 py-8 text-sm text-slate-500">
+    With your permission, local data is stored in a cookie. When you sign in with Google after Firebase is configured, your feedback and meetings are also saved to your private cloud account so they can be loaded on another device.
+  </footer>
+
+<script>
+(() => {
+  const LOCAL_KEY = "studentRepHub_v3";
+  const CONSENT_KEY = "studentRepCookieConsent";
+  const defaultData = { feedback: [], meetings: [] };
+
+  const $ = id => document.getElementById(id);
+
+  function cookiesAllowed() {
+    return document.cookie.split("; ").some(c => c.startsWith(CONSENT_KEY + "=yes"));
+  }
+
+  function getCookie(name) {
+    const prefix = name + "=";
+    const item = document.cookie.split("; ").find(c => c.startsWith(prefix));
+    return item ? decodeURIComponent(item.slice(prefix.length)) : null;
+  }
+
+  function setCookie(name, value, days) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  }
+
+  function loadData() {
+    try {
+      const saved = localStorage.getItem(LOCAL_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (error) {
+      console.warn("LocalStorage load failed:", error);
+    }
+
+    // Import data from the previous cookie-based version if present.
+    if (cookiesAllowed()) {
+      try {
+        const legacy = JSON.parse(getCookie("studentRepHub_v2") || "null");
+        if (legacy && typeof legacy === "object") {
+          try { localStorage.setItem(LOCAL_KEY, JSON.stringify(legacy)); } catch {}
+          return legacy;
+        }
+      } catch {}
+    }
+
+    return {...defaultData};
+  }
+
+  let data = loadData();
+  let calendarDate = new Date();
+
+  function save() {
+    // LocalStorage is the local/offline copy. It is not dependent on cookie consent.
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+    } catch (error) {
+      console.warn("LocalStorage save failed:", error);
+    }
+
+    // If a Google account is signed in, also save to that user's Firestore document.
+    if (window.__cloudSave) {
+      window.__cloudSave(JSON.parse(JSON.stringify(data)));
+    }
+    return true;
+  }
+
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString(undefined, {day:"numeric", month:"short", year:"numeric"});
+  const today = () => new Date().toISOString().slice(0,10);
+
+  $("feedbackDate").value = today();
+  $("meetingDate").value = today();
+
+  function renderStats() {
+    const month = today().slice(0,7);
+    $("statTotal").textContent = data.feedback.length;
+    $("statMonth").textContent = data.feedback.filter(x => x.date.startsWith(month)).length;
+    $("statOpen").textContent = data.feedback.filter(x => x.followUp).length;
+    $("statMeetings").textContent = data.meetings.filter(x => x.date >= today()).length;
+  }
+
+  function populateCategories() {
+    const cats = [...new Set(data.feedback.map(x => x.category))].sort();
+    $("filterCategory").innerHTML = '<option value="">All categories</option>' + cats.map(c => `<option>${esc(c)}</option>`).join("");
+  }
+
+  function renderFeedback() {
+    const q = $("search").value.trim().toLowerCase();
+    const cat = $("filterCategory").value;
+    const date = $("filterDate").value;
+    const rows = data.feedback.filter(x =>
+      (!q || [x.student,x.category,x.description,x.action,x.priority].join(" ").toLowerCase().includes(q)) &&
+      (!cat || x.category === cat) &&
+      (!date || x.date === date)
+    ).sort((a,b) => b.date.localeCompare(a.date));
+
+    $("feedbackList").innerHTML = rows.map(x => `
+      <article class="rounded-2xl border border-slate-200 p-4 hover:border-slate-300 transition">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-black">${esc(x.student)}</span>
+              <span class="text-xs font-bold rounded-full bg-slate-100 px-2.5 py-1">${esc(x.category)}</span>
+              <span class="text-xs font-bold rounded-full ${x.priority === "Urgent" ? "bg-red-100 text-red-700" : x.priority === "High" ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-700"} px-2.5 py-1">${esc(x.priority)}</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">${fmtDate(x.date)}</p>
+          </div>
+          <button type="button" onclick="deleteFeedback(${x.id})" class="text-xs font-bold text-slate-400 hover:text-red-600">Delete</button>
+        </div>
+        <p class="mt-3 text-sm leading-6">${esc(x.description)}</p>
+        ${x.action ? `<p class="mt-3 text-sm"><strong>Action:</strong> ${esc(x.action)}</p>` : ""}
+        ${x.followUp ? `<div class="mt-3 inline-flex text-xs font-bold bg-amber-100 text-amber-800 rounded-full px-2.5 py-1">Follow-up needed</div>` : ""}
+      </article>
+    `).join("");
+    $("emptyFeedback").classList.toggle("hidden", rows.length !== 0);
+  }
+
+  function renderCalendar() {
+    const y = calendarDate.getFullYear(), m = calendarDate.getMonth();
+    $("calendarTitle").textContent = new Date(y,m,1).toLocaleDateString(undefined,{month:"long",year:"numeric"});
+    const first = new Date(y,m,1).getDay();
+    const days = new Date(y,m+1,0).getDate();
+    let html = "";
+    for (let i=0; i<first; i++) html += `<div class="calendar-day rounded-xl bg-slate-50/60"></div>`;
+    for (let d=1; d<=days; d++) {
+      const ds = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      const events = data.meetings.filter(x => x.date === ds).sort((a,b)=>a.time.localeCompare(b.time));
+      const isToday = ds === today();
+      html += `<div class="calendar-day rounded-xl border ${isToday ? "border-coral bg-orange-50/50" : "border-slate-200 bg-white"} p-2 overflow-hidden">
+        <div class="text-xs font-black ${isToday ? "text-coral" : ""}">${d}</div>
+        <div class="mt-1 space-y-1">${events.map(e => `<button data-meeting="${e.id}" class="w-full text-left rounded-lg bg-navy text-white px-2 py-1 text-[10px] font-bold truncate" title="${esc(e.title)}">${esc(e.time)} · ${esc(e.title)}</button>`).join("")}</div>
+      </div>`;
+    }
+    $("calendar").innerHTML = html;
+  }
+
+  function renderMeetings() {
+    const upcoming = data.meetings.filter(x => x.date >= today()).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    $("meetingList").innerHTML = upcoming.map(x => `
+      <article class="rounded-2xl border border-slate-200 p-4">
+        <div class="flex justify-between gap-3">
+          <div>
+            <p class="font-black">${esc(x.title)}</p>
+            <p class="text-sm text-coral font-bold mt-1">${fmtDate(x.date)} · ${esc(x.time)}</p>
+          </div>
+          <button type="button" onclick="deleteMeeting(${x.id})" class="text-xs font-bold text-slate-400 hover:text-red-600">Delete</button>
+        </div>
+        ${x.location ? `<p class="text-sm mt-3">📍 ${esc(x.location)}</p>` : ""}
+        ${x.notes ? `<p class="text-sm text-slate-600 mt-2">${esc(x.notes)}</p>` : ""}
+      </article>
+    `).join("");
+    $("emptyMeetings").classList.toggle("hidden", upcoming.length !== 0);
+  }
+
+  window.deleteFeedback = function(id) {
+    id = Number(id);
+    if (!confirm("Delete this feedback record?")) return;
+
+    const index = data.feedback.findIndex(item => Number(item.id) === id);
+    if (index === -1) return;
+
+    data.feedback.splice(index, 1);
+    save();
+    renderAll();
+  };
+
+  window.deleteMeeting = function(id) {
+    id = Number(id);
+    if (!confirm("Delete this meeting?")) return;
+
+    const index = data.meetings.findIndex(item => Number(item.id) === id);
+    if (index === -1) return;
+
+    data.meetings.splice(index, 1);
+    save();
+    renderAll();
+  };
+
+  window.getAppData = () => JSON.parse(JSON.stringify(data));
+
+  window.replaceAppData = incoming => {
+    if (!incoming || typeof incoming !== "object") return;
+    data = {
+      feedback: Array.isArray(incoming.feedback) ? incoming.feedback : [],
+      meetings: Array.isArray(incoming.meetings) ? incoming.meetings : []
+    };
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+    } catch (error) {
+      console.warn("LocalStorage cache update failed:", error);
+    }
+    renderAll();
+  };
+
+  window.setCloudSaveCallback = callback => {
+    window.__cloudSave = typeof callback === "function" ? callback : null;
+  };
+
+  function renderAll() {
+    renderStats(); populateCategories(); renderFeedback(); renderCalendar(); renderMeetings();
+  }
+
+  $("feedbackForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    data.feedback.push({
+      id: Date.now(),
+      date: f.get("date"),
+      student: f.get("student"),
+      category: f.get("category"),
+      priority: f.get("priority"),
+      description: f.get("description"),
+      action: f.get("action"),
+      followUp: $("followUp").checked
+    });
+    save(); e.target.reset(); $("feedbackDate").value = today(); renderAll();
+  });
+
+  $("meetingForm").addEventListener("submit", e => {
+    e.preventDefault();
+    data.meetings.push({
+      id: Date.now(),
+      title: $("meetingTitle").value.trim(),
+      date: $("meetingDate").value,
+      time: $("meetingTime").value,
+      location: $("meetingLocation").value.trim(),
+      notes: $("meetingNotes").value.trim()
+    });
+    save(); e.target.reset(); $("meetingDate").value = today(); renderAll();
+  });
+
+  ["search","filterCategory","filterDate"].forEach(id => $(id).addEventListener("input", renderFeedback));
+  $("prevMonth").onclick = () => { calendarDate.setMonth(calendarDate.getMonth()-1); renderCalendar(); };
+  $("nextMonth").onclick = () => { calendarDate.setMonth(calendarDate.getMonth()+1); renderCalendar(); };
+  $("todayBtn").onclick = () => { calendarDate = new Date(); renderCalendar(); };
+
+  document.addEventListener("click", e => {
+    const cal = e.target.closest("button[data-meeting]");
+    if (cal) {
+      const item = data.meetings.find(x => Number(x.id) === Number(cal.dataset.meeting));
+      if (item) alert(`${item.title}\n${fmtDate(item.date)} at ${item.time}${item.location ? "\n" + item.location : ""}${item.notes ? "\n\n" + item.notes : ""}`);
+    }
+  });
+
+  $("clearData").onclick = () => {
+    if (confirm("Clear all saved feedback and meetings from this browser?")) {
+      data = {feedback:[], meetings:[]}; save(); renderAll();
+    }
+  };
+
+  // Cookie permission must be granted before any app data is written to cookies.
+  function showCookieConsentIfNeeded() {
+    if (!document.cookie.split("; ").some(c => c.startsWith(CONSENT_KEY + "="))) {
+      $("cookieConsent").classList.remove("hidden");
+    }
+  }
+
+  $("acceptCookies").onclick = () => {
+    setCookie(CONSENT_KEY, "yes", 365);
+    save();
+    $("cookieConsent").classList.add("hidden");
+  };
+
+  $("declineCookies").onclick = () => {
+    setCookie(CONSENT_KEY, "no", 365);
+    $("cookieConsent").classList.add("hidden");
+  };
+
+  $("viewMeetingsBtn").onclick = () => {
+    $("meetings").scrollIntoView({behavior: "smooth", block: "start"});
+  };
+
+  renderAll();
+  showCookieConsentIfNeeded();
+})();
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAU7dm1JheLEq0hpWvv3pQf3qBWdPMosc0",
+    authDomain: "student-rep.firebaseapp.com",
+    projectId: "student-rep",
+    storageBucket: "student-rep.firebasestorage.app",
+    messagingSenderId: "330978894924",
+    appId: "1:330978894924:web:514c1206988d7333dfc0e9",
+    measurementId: "G-V0YYJHEM93"
+  };
+
+  const loginScreen = document.getElementById("loginScreen");
+  const loginBtn = document.getElementById("googleLoginBtn");
+  const localBtn = document.getElementById("useLocalBtn");
+  const status = document.getElementById("loginStatus");
+  const setupNotice = document.getElementById("firebaseSetupNotice");
+  const accountArea = document.getElementById("accountArea");
+  const accountName = document.getElementById("accountName");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const syncStatus = document.getElementById("syncStatus");
+
+  let auth = null;
+  let db = null;
+  let currentUser = null;
+  let saveInProgress = false;
+  let pendingCloudData = null;
+
+  function showApp() {
+    loginScreen.classList.add("hidden");
+  }
+
+  function showLogin() {
+    loginScreen.classList.remove("hidden");
+    accountArea.classList.add("hidden");
+    accountArea.classList.remove("flex");
+    if (syncStatus) {
+      syncStatus.textContent = "Local mode";
+      syncStatus.classList.remove("hidden");
+    }
+  }
+
+  function showAccount(user) {
+    accountArea.classList.remove("hidden");
+    accountArea.classList.add("flex");
+    accountName.textContent = user.displayName || user.email || "Signed in";
+  }
+
+  function setSync(text) {
+    if (syncStatus) {
+      syncStatus.textContent = text;
+      syncStatus.classList.remove("hidden");
+    }
+  }
+
+  async function saveCloud(appData) {
+    if (!currentUser || !db) return;
+
+    pendingCloudData = appData;
+    if (saveInProgress) return;
+
+    saveInProgress = true;
+    try {
+      while (pendingCloudData) {
+        const next = pendingCloudData;
+        pendingCloudData = null;
+
+        setSync("Saving…");
+        await setDoc(
+          doc(db, "users", currentUser.uid),
+          {
+            feedback: Array.isArray(next.feedback) ? next.feedback : [],
+            meetings: Array.isArray(next.meetings) ? next.meetings : [],
+            updatedAt: serverTimestamp()
+          },
+          { merge: true }
+        );
+      }
+      setSync("Saved to cloud");
+      status.textContent = "";
+    } catch (error) {
+      console.error("Firestore save failed:", error);
+      setSync("Cloud save failed");
+      status.textContent =
+        "Your local copy is safe, but the latest change could not be saved to the cloud.";
+    } finally {
+      saveInProgress = false;
+    }
+  }
+
+  async function loadCloud(user) {
+    setSync("Loading…");
+    const ref = doc(db, "users", user.uid);
+    const snapshot = await getDoc(ref);
+
+    if (snapshot.exists()) {
+      const cloudData = snapshot.data();
+
+      // Firestore is the source of truth once an account has a saved document.
+      window.replaceAppData({
+        feedback: Array.isArray(cloudData.feedback) ? cloudData.feedback : [],
+        meetings: Array.isArray(cloudData.meetings) ? cloudData.meetings : []
+      });
+
+      setSync("Loaded from cloud");
+      return;
+    }
+
+    // First sign-in: migrate existing local data into the user's private account.
+    const localData = window.getAppData();
+    const hasLocalData =
+      (localData.feedback?.length || 0) ||
+      (localData.meetings?.length || 0);
+
+    if (hasLocalData) {
+      await saveCloud(localData);
+      setSync("Local data uploaded");
+    } else {
+      await setDoc(ref, {
+        feedback: [],
+        meetings: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      setSync("Cloud account ready");
+    }
+  }
+
+  function friendlyAuthError(error) {
+    const code = error?.code || "";
+    const map = {
+      "auth/popup-blocked": "Your browser blocked the Google sign-in popup. Allow popups for this site and try again.",
+      "auth/popup-closed-by-user": "The Google sign-in window was closed before sign-in finished.",
+      "auth/unauthorized-domain": "This website is not authorized in Firebase. Add your GitHub Pages domain under Authentication → Settings → Authorized domains.",
+      "auth/operation-not-allowed": "Google sign-in is not enabled. Turn on Google under Authentication → Sign-in method.",
+      "auth/invalid-api-key": "The Firebase API key is invalid or does not match this Firebase project.",
+      "auth/network-request-failed": "The network request failed. Check your internet connection.",
+      "auth/account-exists-with-different-credential": "This Google account already exists with a different sign-in method.",
+      "auth/internal-error": "Firebase returned an internal error. Open the browser console for the full error."
+    };
+    return map[code] || `Google sign-in failed (${code || "unknown error"}).`;
+  }
+
+  const configured = Object.values(firebaseConfig).every(
+    value => value && !String(value).startsWith("YOUR_")
+  );
+
+  if (!configured) {
+    setupNotice.classList.remove("hidden");
+    loginBtn.disabled = true;
+    status.textContent = "Firebase is not configured.";
+    localBtn.onclick = () => {
+      showApp();
+      setSync("Local mode");
+    };
+  } else {
+    try {
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      const provider = new GoogleAuthProvider();
+
+      // Every app save updates LocalStorage and, when signed in, Firestore.
+      window.setCloudSaveCallback(saveCloud);
+
+      loginBtn.onclick = async () => {
+        status.textContent = "Opening Google sign-in…";
+        loginBtn.disabled = true;
+
+        try {
+          await signInWithPopup(auth, provider);
+        } catch (error) {
+          console.error("Google sign-in error:", error);
+          status.textContent = friendlyAuthError(error);
+        } finally {
+          loginBtn.disabled = false;
+        }
+      };
+
+      logoutBtn.onclick = async () => {
+        try {
+          await signOut(auth);
+          // The LocalStorage copy remains on this device as the offline fallback.
+        } catch (error) {
+          console.error("Logout failed:", error);
+          status.textContent = "Logout failed. Please try again.";
+        }
+      };
+
+      localBtn.onclick = () => {
+        showApp();
+        setSync("Local mode");
+      };
+
+      onAuthStateChanged(auth, async user => {
+        if (!user) {
+          currentUser = null;
+          pendingCloudData = null;
+          showLogin();
+          status.textContent = "Sign in with Google to sync your data across devices.";
+          return;
+        }
+
+        currentUser = user;
+        showAccount(user);
+        status.textContent = "Loading your saved data…";
+
+        try {
+          await loadCloud(user);
+          showApp();
+          status.textContent = "";
+        } catch (error) {
+          console.error("Firestore load failed:", error);
+          setSync("Cloud unavailable");
+          status.textContent =
+            "You are signed in, but Firebase could not load your cloud data. Your local copy remains available.";
+          showApp();
+        }
+      });
+    } catch (error) {
+      console.error("Firebase initialization failed:", error);
+      setupNotice.classList.remove("hidden");
+      status.textContent = "Firebase could not be initialized. Check the configuration.";
+      localBtn.onclick = () => {
+        showApp();
+        setSync("Local mode");
+      };
+    }
+  }
+</script>
+
+</body>
+</html>
